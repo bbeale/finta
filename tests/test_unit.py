@@ -120,7 +120,7 @@ def test_zlema():
     ma = TA.ZLEMA(ohlc)
 
     assert isinstance(ma, series.Series)
-    assert ma.values[-1] == 5193.0313725800006
+    assert ma.values[-1] == 6462.46183364893
 
 
 def test_wma():
@@ -322,8 +322,8 @@ def test_kc():
     assert isinstance(kc["KC_UPPER"], series.Series)
     assert isinstance(kc["KC_LOWER"], series.Series)
 
-    assert kc["KC_UPPER"].values[-1] == 6059.9253031099979
-    assert kc["KC_LOWER"].values[-1] == 4591.8874420500033
+    assert kc["KC_UPPER"].values[-1] == 7014.749436242795
+    assert kc["KC_LOWER"].values[-1] == 5546.7115751828005
 
 
 def test_do():

@@ -4,6 +4,9 @@ from pandas import DataFrame, Series
 
 
 class TA:
+
+    __version__ = "0.4.2"
+
     @classmethod
     def SMA(cls, ohlc: DataFrame, period: int = 41, column: str = "close") -> Series:
         """
@@ -131,20 +134,34 @@ class TA:
         return pd.Series(SMA / period, name="{0} period TRIMA".format(period))
 
     @classmethod
-    def TRIX(cls, ohlc: DataFrame, period: int = 15, adjust: bool = True) -> Series:
+    def TRIX(cls, ohlc: DataFrame, period: int = 20, column: str = "close",
+             adjust: bool = True) -> Series:
         """
-        The Triple Exponential Moving Average Oscillator (TRIX) by Jack Hutson is a momentum indicator that oscillates around zero.
-        It displays the percentage rate of change between two triple smoothed exponential moving averages.
-        To calculate TRIX we calculate triple smoothed EMA3 of n periods and then substract previous period EMA3 value
-        from last EMA3 value and divide the result with yesterdays EMA3 value.
+        The TRIX indicator calculates the rate of change of a triple exponential moving average.
+        The values oscillate around zero. Buy/sell signals are generated when the TRIX crosses above/below zero.
+        A (typically) 9 period exponential moving average of the TRIX can be used as a signal line.
+        A buy/sell signals are generated when the TRIX crosses above/below the signal line and is also above/below zero.
+
+        The TRIX was developed by Jack K. Hutson, publisher of Technical Analysis of Stocks & Commodities magazine,
+        and was introduced in Volume 1, Number 5 of that magazine. 
         """
 
-        EMA1 = cls.EMA(ohlc, period)
-        EMA2 = EMA1.ewm(span=period, adjust=adjust).mean()
-        EMA3 = EMA2.ewm(span=period, adjust=adjust).mean()
-        TRIX = (EMA3 - EMA3.diff()) / EMA3.diff()
+        data = ohlc[column]
 
-        return pd.Series(TRIX, name="{0} period TRIX".format(period))
+        def _ema(data, period, adjust):
+            return pd.Series(
+                data
+                .ewm(span=period, adjust=adjust)
+                .mean()
+            )
+
+        m = _ema(
+                 _ema(_ema(data, period, adjust),
+                      period, adjust),
+                 period, adjust)
+
+        return pd.Series(100 * (m.diff() / m),
+                         name="{0} period TRIX".format(period))
 
     @classmethod
     def LWMA(cls, ohlc: DataFrame, period: int, column: str = "close") -> Series:
@@ -230,16 +247,26 @@ class TA:
         return sma["KAMA"]
 
     @classmethod
-    def ZLEMA(cls, ohlc: DataFrame, period: int = 26) -> Series:
+    def ZLEMA(cls, ohlc: DataFrame, period: int = 26, adjust: bool = True) -> Series:
         """ZLEMA is an abbreviation of Zero Lag Exponential Moving Average. It was developed by John Ehlers and Rick Way.
         ZLEMA is a kind of Exponential moving average but its main idea is to eliminate the lag arising from the very nature of the moving averages
         and other trend following indicators. As it follows price closer, it also provides better price averaging and responds better to price swings."""
 
         lag = (period - 1) / 2
-        return pd.Series(
+
+        ema = pd.Series(
             (ohlc["close"] + (ohlc["close"].diff(lag))),
             name="{0} period ZLEMA.".format(period),
         )
+
+        zlema = pd.Series(
+            ema
+            .ewm(span=period, adjust=adjust)
+            .mean(),
+            name="{0} period ZLEMA".format(period),
+        )
+
+        return zlema
 
     @classmethod
     def WMA(cls, ohlc: DataFrame, period: int = 9, column: str = "close") -> Series:
@@ -260,7 +287,7 @@ class TA:
             return _compute
 
         close_ = ohlc["close"].rolling(period, min_periods=period)
-        wma = close_.apply(linear(weights))
+        wma = close_.apply(linear(weights), raw=True)
 
         return pd.Series(wma, name="{0} period WMA.".format(period))
 
@@ -313,7 +340,7 @@ class TA:
                 evwma.append(evwma[-1] * x[1] + y[1])
 
         return pd.Series(
-            Series(evwma[1:], index=ohlcv.index),
+            evwma[1:], index=ohlcv.index,
             name="{0} period EVWMA.".format(period),
         )
 
