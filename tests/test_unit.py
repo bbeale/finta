@@ -84,7 +84,7 @@ def test_trix():
     ma = TA.TRIX(ohlc)
 
     assert isinstance(ma, series.Series)
-    assert ma.values[-1] == -142.64042774606133
+    assert ma.values[-1] == -0.5498363959871698
 
 
 def test_vama():
@@ -439,8 +439,8 @@ def test_vortex():
     assert isinstance(v["VIp"], series.Series)
     assert isinstance(v["VIm"], series.Series)
 
-    assert v["VIp"].values[-1] == 31.175958144620818
-    assert v["VIm"].values[-1] == -51.640155675485332
+    assert v["VIp"].values[-1] == 0.7685610477050326
+    assert v["VIm"].values[-1] == -1.273051880731049
 
 
 def test_kst():
