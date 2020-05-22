@@ -592,7 +592,7 @@ class TA:
         _loss = down.abs().ewm(span=period, adjust=adjust).mean()
 
         RS = _gain / _loss
-        return pd.Series(100 - (100 / (1 + RS)), name="RSI")
+        return pd.Series(100 - (100 / (1 + RS)), name="{0} period RSI".format(period))
 
     @classmethod
     def IFT_RSI(
@@ -985,7 +985,7 @@ class TA:
 
         return pd.Series(
             cls.STOCH(ohlc, stoch_period).rolling(center=False, window=period).mean(),
-            name="{0} perood STOCH %D.".format(period),
+            name="{0} period STOCH %D.".format(period),
         )
 
     @classmethod
