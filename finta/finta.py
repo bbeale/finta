@@ -5,7 +5,7 @@ from pandas import DataFrame, Series
 
 class TA:
 
-    __version__ = "0.4.3"
+    __version__ = "0.4.4"
 
     @classmethod
     def SMA(cls, ohlc: DataFrame, period: int = 41, column: str = "close") -> Series:
@@ -280,8 +280,7 @@ class TA:
         """
 
         d = (period * (period + 1)) / 2  # denominator
-        _weights = pd.Series(np.arange(1, period + 1))
-        weights = _weights.iloc[::-1]  # reverse the series
+        weights = pd.Series(np.arange(1, period + 1))
 
         def linear(w):
             def _compute(x):
@@ -289,8 +288,8 @@ class TA:
 
             return _compute
 
-        close_ = ohlc["close"].rolling(period, min_periods=period)
-        wma = close_.apply(linear(weights), raw=True)
+        _close = ohlc[column].rolling(period, min_periods=period)
+        wma = _close.apply(linear(weights), raw=True)
 
         return pd.Series(wma, name="{0} period WMA.".format(period))
 
@@ -642,6 +641,40 @@ class TA:
     def SWI(cls, ohlc: DataFrame, period: int = 16) -> Series:
         """Sine Wave indicator"""
         raise NotImplementedError
+
+    @classmethod
+    def DYMI(cls, ohlc: DataFrame, column: str = "close", adjust: bool = True) -> Series:
+        """
+        The Dynamic Momentum Index is a variable term RSI. The RSI term varies from 3 to 30. The variable 
+        time period makes the RSI more responsive to short-term moves. The more volatile the price is, 
+        the shorter the time period is. It is interpreted in the same way as the RSI, but provides signals earlier.
+        Readings below 30 are considered oversold, and levels over 70 are considered overbought. The indicator
+        oscillates between 0 and 100.
+        https://www.investopedia.com/terms/d/dynamicmomentumindex.asp
+        """
+
+        def _get_time(close):
+            # Value available from 14th period
+            sd = close.rolling(5).std()
+            asd = sd.rolling(10).mean()
+            v = sd / asd
+            t = 14 / v.round()
+            t[t.isna()] = 0
+            t = t.map(lambda x: int(min(max(x, 5), 30)))
+            return t
+
+        def _dmi(index):
+            time = t.iloc[index]
+            if (index - time) < 0:
+                subset = ohlc.iloc[0:index]
+            else:
+                subset = ohlc.iloc[(index - time) : index]
+            return cls.RSI(subset, period=time, adjust=adjust).values[-1]
+
+        dates = Series(ohlc.index)
+        periods = Series(range(14, len(dates)), index=ohlc.index[14:].values)
+        t = _get_time(ohlc[column])
+        return periods.map(lambda x: _dmi(x))
 
     @classmethod
     def TR(cls, ohlc: DataFrame) -> Series:
@@ -1085,8 +1118,8 @@ class TA:
          Strongly positive or negative trend movements will show a longer length between the two numbers while
          weaker positive or negative trend movement will show a shorter length."""
 
-        VMP = pd.Series(ohlc["high"] - ohlc["low"].shift().abs())
-        VMM = pd.Series(ohlc["low"] - ohlc["high"].shift().abs())
+        VMP = pd.Series((ohlc["high"] - ohlc["low"].shift()).abs())
+        VMM = pd.Series((ohlc["low"] - ohlc["high"].shift()).abs())
 
         VMPx = VMP.rolling(window=period).sum()
         VMMx = VMM.rolling(window=period).sum()
@@ -1433,7 +1466,9 @@ class TA:
         return pd.concat([nbf, nsf], axis=1)
 
     @classmethod
-    def CMO(cls, ohlc: DataFrame, period: int = 9) -> DataFrame:
+    def CMO(
+        cls, ohlc: DataFrame, period: int = 9, factor: int = 100, adjust: bool = True
+    ) -> DataFrame:
         """
         Chande Momentum Oscillator (CMO) - technical momentum indicator invented by the technical analyst Tushar Chande.
         It is created by calculating the difference between the sum of all recent gains and the sum of all recent losses and then
@@ -1441,11 +1476,19 @@ class TA:
         This oscillator is similar to other momentum indicators such as the Relative Strength Index and the Stochastic Oscillator
         because it is range bounded (+100 and -100)."""
 
-        mom = ohlc["close"].diff().abs()
-        sma_mom = mom.rolling(window=period).mean()
-        mom_len = ohlc["close"].diff(period)
+        # get the price diff
+        delta = ohlc["close"].diff()
 
-        return pd.Series(100 * (mom_len / (sma_mom * period)))
+        # positive gains (up) and negative gains (down) Series
+        up, down = delta.copy(), delta.copy()
+        up[up < 0] = 0
+        down[down > 0] = 0
+
+        # EMAs of ups and downs
+        _gain = up.ewm(com=period, adjust=adjust).mean()
+        _loss = down.ewm(com=period, adjust=adjust).mean().abs()
+
+        return pd.Series(factor * ((_gain - _loss) / (_gain + _loss)), name="CMO")
 
     @classmethod
     def CHANDELIER(

@@ -129,7 +129,7 @@ def test_wma():
     ma = TA.WMA(ohlc)
 
     assert isinstance(ma, series.Series)
-    assert ma.values[-1] == 6597.1975445128883
+    assert ma.values[-1] == 6474.470030782667
 
 
 def test_hma():
@@ -259,6 +259,15 @@ def test_ift_rsi():
 
     assert isinstance(rsi, series.Series)
     assert rsi.values[-1] == 2.6918116852046792
+
+
+def test_dymi():
+    """test TA.DYMI"""
+
+    dymi = TA.DYMI(ohlc)
+
+    assert isinstance(dymi, series.Series)
+    assert dymi.values[-1] == 32.03257779185371
 
 
 def test_tr():
@@ -440,7 +449,7 @@ def test_vortex():
     assert isinstance(v["VIm"], series.Series)
 
     assert v["VIp"].values[-1] == 0.7685610477050326
-    assert v["VIm"].values[-1] == -1.273051880731049
+    assert v["VIm"].values[-1] == 1.273051880731049
 
 
 def test_kst():
